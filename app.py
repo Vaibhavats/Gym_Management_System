@@ -1,13 +1,13 @@
-import streamlit as st # For interactive UI (if needed)
+import streamlit as st
 import pandas as pd
-from db import insert_member, insert_payment, fetch_members, fetch_membership_types, fetch_trainers, get_connection, delete_member, renew_membership # DB functions
-
+from db import insert_member, insert_payment, fetch_members, fetch_membership_types, fetch_trainers, get_connection, delete_member, renew_membership
 
 st.set_page_config(page_title="Gym Management System", layout="wide")
 st.title("🏋️ Gym Management System")
 
-menu = ["Register New Member", "View Members", "Delete Member","Renew Membership"]
+menu = ["Register New Member", "View Members", "Delete Member", "Renew Membership"]
 choice = st.sidebar.selectbox("Menu", menu)
+
 
 # ------------------- Fetch Membership Plans and Trainers -------------------
 membership_df = fetch_membership_types()
@@ -16,11 +16,11 @@ membership_plans = membership_df['membership_type'].tolist()
 trainers_df = fetch_trainers()
 trainers_display = [f"{row['name']} ({row['specialization']})" for _, row in trainers_df.iterrows()]
 
+
 # ----------------- Register Member -----------------
 if choice == "Register New Member":
     st.subheader("📝 Register New Member")
 
-    # Membership selection OUTSIDE the form
     selected_plan_name = st.selectbox("Select Membership Plan", membership_plans)
     selected_plan = membership_df[membership_df['membership_type'] == selected_plan_name].iloc[0]
 
@@ -28,17 +28,14 @@ if choice == "Register New Member":
     st.write(f"⏳ Duration: {selected_plan['validity_months']} months")
 
     with st.form("register_form"):
-        # Member details
         name = st.text_input("Full Name")
         age = st.number_input("Age", min_value=10, max_value=100)
         gender = st.selectbox("Gender", ["M", "F", "O"])
         contact = st.text_input("Contact Number")
 
-        # Trainer selection
         selected_trainer_display = st.selectbox("Trainer", trainers_display)
         trainer_id = trainers_df.iloc[trainers_display.index(selected_trainer_display)]['trainer_id']
 
-        # Payment details
         payment_mode = st.selectbox("Payment Mode", ["Cash", "Card", "UPI"])
         payment_status = st.selectbox("Payment Status", ["Paid", "Unpaid"])
 
@@ -46,7 +43,6 @@ if choice == "Register New Member":
 
     if submit:
         if name and contact:
-            # Check for duplicate member in DB
             conn = get_connection()
             cursor = conn.cursor()
             cursor.execute(
@@ -59,7 +55,6 @@ if choice == "Register New Member":
             if existing:
                 st.warning("This member is already registered!")
             else:
-                # Insert member
                 member_id = insert_member(
                     name=name,
                     age=age,
@@ -68,7 +63,7 @@ if choice == "Register New Member":
                     membership_type=selected_plan_name,
                     trainer_id=trainer_id
                 )
-                # Insert payment
+
                 insert_payment(
                     member_id=member_id,
                     amount=selected_plan['price'],
@@ -79,16 +74,22 @@ if choice == "Register New Member":
         else:
             st.error("Please enter both Name and Contact Number.")
 
+
 # ----------------- View Members -----------------
 elif choice == "View Members":
-    st.subheader("👥 Registered Members")
-    # Fetch fresh members data from session or DB
-    members_df = st.session_state.get('members_df', fetch_members())
+    st.subheader("👥 View Members")
+
+    membership_list = ["All"] + membership_plans
+
+    selected_filter = st.selectbox("Filter by Membership Type", membership_list)
+
+    # FIXED: No None value
+    members_df = fetch_members(selected_filter)
 
     if not members_df.empty:
         st.dataframe(members_df)
     else:
-        st.info("No members found yet.")
+        st.info("No members found for this category.")
 
 
 # ----------------- Delete Member -----------------
@@ -130,24 +131,24 @@ elif choice == "Delete Member":
                 with col2:
                     if st.button("Cancel"):
                         st.session_state.confirm_delete = False
+
         else:
             st.info("No member found with this ID or Name.")
-    # ------------------- Renew Membership -------------------
+
+
+# ----------------- Renew Membership -----------------
 elif choice == "Renew Membership":
     st.header("♻️ Renew Membership")
 
-    # Fetch existing members
     members = fetch_members()
+
     if members.empty:
         st.warning("No members found. Please register a member first.")
     else:
-        # Display members in "ID - Name" format
         member_names = [f"{row['member_id']} - {row['Member_Name']}" for _, row in members.iterrows()]
         selected_member = st.selectbox("Select Member", member_names)
         member_id = int(selected_member.split(" - ")[0])
 
-        # Dynamic membership plans
-        membership_df = fetch_membership_types()
         membership_plans = membership_df['membership_type'].tolist()
         selected_plan_name = st.selectbox("Select Membership Plan", membership_plans)
 
@@ -158,14 +159,9 @@ elif choice == "Renew Membership":
         st.write(f"💰 Price: ₹{price}")
         st.write(f"⏳ Duration: {duration_months} months")
 
-        # Payment status and mode
         payment_status = st.selectbox("Payment Status", ["Paid", "Unpaid"])
-        if payment_status == "Paid":
-            payment_mode = st.selectbox("Payment Mode", ["Cash", "UPI", "Card"])
-        else:
-            payment_mode = None
+        payment_mode = st.selectbox("Payment Mode", ["Cash", "UPI", "Card"]) if payment_status == "Paid" else None
 
-        # Renew membership button
         if st.button("Renew Membership"):
             payment_id, new_start, new_end, last_amount, last_payment_date = renew_membership(
                 member_id, selected_plan_name, price, payment_mode, payment_status, duration_months
@@ -173,7 +169,6 @@ elif choice == "Renew Membership":
 
             st.success("Membership renewed successfully! ✅")
             st.write(f"Payment ID: {payment_id}")
-            st.write(f"Status: {payment_status}")
             st.write(f"New Start Date: {new_start}")
             st.write(f"New End Date: {new_end}")
             st.write(f"Last Paid Amount: ₹{last_amount}")

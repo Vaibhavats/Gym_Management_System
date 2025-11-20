@@ -1,15 +1,14 @@
 import pandas as pd
 import mysql.connector
-from sqlalchemy import create_engine #cvnt dataframes to sql tables
-import pymysql  # MySQL driver for SQLAlchemy
-from urllib.parse import quote_plus # For URL encoding
-import streamlit as st # For interactive UI (if needed)
-from db import insert_member, insert_payment, fetch_members, fetch_membership_types, fetch_trainers # DB functions
+from sqlalchemy import create_engine
+from urllib.parse import quote_plus
+import streamlit as st
+from db import insert_member, insert_payment, fetch_members, fetch_membership_types, fetch_trainers
 
 
 # ------------------- Helper Functions -------------------
 
-def capitalize_strings(df): 
+def capitalize_strings(df):
     """Capitalize all string/object columns and replace 'Nan' with None."""
     for col in df.select_dtypes(include=['object']).columns:
         df[col] = df[col].astype(str).str.strip().str.title()
@@ -154,15 +153,15 @@ def clean_payments(file, valid_members=None):
 
 # ------------------- Call Cleaning Functions -------------------
 
-trainers_df = clean_trainers(r"/Users/vaibhavkumar/Downloads/trainer_dirty.csv")
-membership_df = clean_membership_types(r"/Users/vaibhavkumar/Downloads/membership_types_dirty.csv")
+trainers_df = clean_trainers(r"F:\DBMS_PROJECT\trainer_dirty.csv")
+membership_df = clean_membership_types(r"F:\DBMS_PROJECT\membership_types_dirty.csv")
 members_df = clean_members(
-    r"/Users/vaibhavkumar/Downloads/members_dirty.csv",
+    r"F:\DBMS_PROJECT\members_dirty.csv",
     valid_trainers=set(trainers_df['trainer_id']),
     valid_memberships=set(membership_df['membership_type'])
 )
 payments_df = clean_payments(
-    r"/Users/vaibhavkumar/Downloads/payments_dirty.csv",
+    r"F:\DBMS_PROJECT\payments_dirty.csv",
     valid_members=set(members_df['member_id'])
 )
 
@@ -174,7 +173,7 @@ print("Payments Cleaned:\n", payments_df.head(), "\n")
 
 
 user = 'root'
-password = 'root@123'
+password = 'Kartik10@'
 host = 'localhost'
 database = 'gym_db'
 
